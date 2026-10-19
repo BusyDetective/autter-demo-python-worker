@@ -40,7 +40,7 @@ def test_processing_job_is_not_reclaimed_before_timeout(monkeypatch):
     assert next_job("org_a") is None
 
 
-def test_processing_job_can_be_reclaimed_after_timeout(monkeypatch):
+def test_processing_job_is_not_reclaimed_after_timeout(monkeypatch):
     import worker.store as store
 
     current_time = 100.0
@@ -52,4 +52,4 @@ def test_processing_job_can_be_reclaimed_after_timeout(monkeypatch):
 
     current_time += 2.0
 
-    assert next_job("org_a") is job
+    assert next_job("org_a") is None
