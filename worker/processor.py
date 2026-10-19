@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from .store import next_job
+from .store import claim_next, complete_job, fail_job
 
 UPLOAD_ROOT = Path("uploads")
 
@@ -13,21 +13,27 @@ def read_upload(path: str):
     return Path(UPLOAD_ROOT / path).read_text()
 
 
-def process_job(job):
+def process_job(job, claim_token):
+    if not claim_token:
+        raise ValueError("claim_token is required")
+
+    updates = {}
     try:
         if job.kind == "file":
-            job.payload["content"] = read_upload(job.payload["path"])
+            updates["content"] = read_upload(job.payload["path"])
         if job.kind == "llm":
-            job.payload["prompt"] = build_prompt(job.payload["text"])
-        job.status = "complete"
-    except Exception as exc:
-        job.status = "failed"
-        job.error = "worker failed"
+            updates["prompt"] = build_prompt(job.payload["text"])
+    except Exception:
+        # Only the current claim may transition the job to failed.
+        fail_job(job.id, claim_token)
         raise
+
+    # The guarded write also prevents stale workers from publishing results.
+    return complete_job(job.id, claim_token, payload_updates=updates)
 
 
 def run_once(org_id):
-    job = next_job(org_id)
+    job, claim_token = claim_next(org_id)
     if job:
-        process_job(job)
+        process_job(job, claim_token)
     return job
