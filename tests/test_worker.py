@@ -40,7 +40,7 @@ def test_processing_job_is_not_reclaimed_before_timeout(monkeypatch):
     assert next_job("org_a") is None
 
 
-def test_processing_job_is_not_reclaimed_after_timeout(monkeypatch):
+def test_processing_job_is_reclaimed_after_timeout_with_new_claim(monkeypatch):
     import worker.store as store
 
     current_time = 100.0
@@ -48,8 +48,13 @@ def test_processing_job_is_not_reclaimed_after_timeout(monkeypatch):
 
     job = submit_job("org_a", "llm", {"text": "hello"})
 
-    assert next_job("org_a") is job
+    first_claim = store.claim_next("org_a")
+    assert first_claim[0] is job
+    first_token = first_claim[1]
 
     current_time += 2.0
 
-    assert next_job("org_a") is None
+    second_claim = store.claim_next("org_a")
+    assert second_claim[0] is job
+    assert second_claim[1] != first_token
+    assert job.attempts == 2

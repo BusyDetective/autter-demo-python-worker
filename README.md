@@ -61,6 +61,12 @@ This repo is intentionally imperfect. Do not fix every issue on `main`. Each cha
 
 Some tests use expected-failure markers. They document known broken behavior while keeping the baseline suite runnable for demo setup. When solving a challenge, convert or replace the relevant expected-failure coverage with passing regression tests.
 
+## Queue lease behavior
+
+The in-memory queue uses a per-process lock to serialize job submission, claims, completion, and failure. Workers should use `claim_next()` so the job and claim token are captured atomically. An expired lease can be reclaimed with a new token; a previous worker's completion or failure is rejected after its token is superseded.
+
+This is an at-least-once processing model, not exactly-once execution. A job that runs longer than its lease may execute concurrently with a retry, so handlers that perform external side effects must be idempotent. The lock does not coordinate separate worker processes because each process has its own in-memory queue. Multi-process deployment requires a shared store or queue with atomic claim operations, and long-running jobs need lease renewal.
+
 ## Challenges
 
 | Challenge                                                                                                                    | Difficulty | Category      | Expected Autter review angle             |
