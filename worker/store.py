@@ -31,11 +31,20 @@ def submit_job(org_id, kind, payload, idempotency_key=None):
     return job
 
 
+
 def next_job(org_id):
     now = time.time()
     for job in jobs:
+        if job.org_id != org_id:
+            continue
+
+        if job.status == "processing" and job.visible_at <= now:
+            job.status = "queued"
+
         if job.status == "queued" and job.visible_at <= now:
             job.status = "processing"
             job.visible_at = now + 1
+            job.attempts += 1
             return job
+
     return None
